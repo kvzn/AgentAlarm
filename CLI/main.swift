@@ -23,9 +23,14 @@ DispatchQueue.global(qos: .userInitiated).async {
     exitCode.value = CLICommands.run(cliEnvironment)
     finished.signal()
 }
-// 整体自我超时 1 秒：无论卡在 stdin 还是 socket，都以 0 退出，绝不拖住 Agent。
+let subcommand = cliEnvironment.arguments.first ?? ""
+// 整体自我超时 1 秒：hook/notify 无论如何以 0 退出，绝不拖住 Agent；test/status 则如实报告未响应。
 if finished.wait(timeout: .now() + 1.0) == .timedOut {
-    cliEnvironment.log("timed out after 1s, exiting 0")
+    cliEnvironment.log("timed out after 1s")
+    if subcommand == "test" || subcommand == "status" {
+        cliEnvironment.stdout("AgentAlarm 未响应（1 秒内无结果），socket: \(cliEnvironment.socketPath)")
+        exit(1)
+    }
     exit(0)
 }
 exit(exitCode.value)
