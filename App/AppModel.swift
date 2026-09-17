@@ -13,6 +13,23 @@ struct LogEntry: Identifiable {
     let outcome: String
 }
 
+/// 标题解析专用队列：同步文件/SQLite 读取不占用 Swift 协作线程池。
+private let titleResolutionQueue = DispatchQueue(label: "com.jack.agentalarm.titles", qos: .userInitiated, attributes: .concurrent)
+
+/// 只把 continuation 恢复一次，供解析结果与超时兜底竞争。
+private final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<TitleResolution, Never>?
+    init(_ continuation: CheckedContinuation<TitleResolution, Never>) { self.continuation = continuation }
+    func resume(with value: TitleResolution) {
+        lock.lock()
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        pending?.resume(returning: value)
+    }
+}
+
 /// 事件管线：socket → 标题解析 → 等待列表 → 策略 → 声音/语音/日志。
 @MainActor @Observable
 final class AppModel {
@@ -70,7 +87,10 @@ final class AppModel {
             socketLogger.error("undecodable event, \(data.count) bytes")
             return
         }
-        settings.markVerified(event.agent)
+        // 只有真实 hook 事件才算接入已验证；test 合成事件不算。
+        if event.source.hookEventName != "test" {
+            settings.markVerified(event.agent)
+        }
         guard event.kind.isAlerting else {
             _ = waiting.apply(event, title: "", now: Date())
             record(event, title: "", outcome: "list: \(event.kind.rawValue)")
@@ -83,17 +103,14 @@ final class AppModel {
         }
     }
 
-    /// 标题解析预算 1 秒：先到先用，超时用退化标题，不阻塞提醒。
-    nonisolated static func resolveWithBudget(_ event: AlarmEvent, service: TitleService) async -> TitleResolution {
-        await withTaskGroup(of: TitleResolution.self) { group in
-            group.addTask { service.resolve(event) }
-            group.addTask {
-                try? await Task.sleep(for: .seconds(1))
-                return FallbackTitle.resolve(event)
+    /// 标题解析预算 1 秒：解析器在专用队列上同步执行，与计时器竞争，先到者胜；慢解析器的结果丢弃。
+    nonisolated static func resolveWithBudget(_ event: AlarmEvent, service: TitleService, budget: TimeInterval = 1.0) async -> TitleResolution {
+        await withCheckedContinuation { (continuation: CheckedContinuation<TitleResolution, Never>) in
+            let once = ResumeOnce(continuation)
+            titleResolutionQueue.async { once.resume(with: service.resolve(event)) }
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + budget) {
+                once.resume(with: FallbackTitle.resolve(event))
             }
-            let first = await group.next() ?? FallbackTitle.resolve(event)
-            group.cancelAll()
-            return first
         }
     }
 
