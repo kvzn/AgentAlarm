@@ -39,12 +39,41 @@ final class Collector: @unchecked Sendable {
         let server = SocketServer(path: path, maxMessageBytes: 1024) { collector.append($0) }
         try server.start()
         defer { server.stop() }
-        let client = SocketClient(path: path, maxMessageBytes: 1024)
+        let client = SocketClient(path: path, maxMessageBytes: 4096)
         #expect(client.send(Data("{\"a\":1}\n{\"b\":2}\n".utf8)) == .delivered)
         #expect(collector.semaphore.wait(timeout: .now() + 2) == .success)
         #expect(String(decoding: collector.received[0], as: UTF8.self) == "{\"a\":1}")
-        #expect(client.send(Data(repeating: 0x41, count: 2048)) == .tooLarge)
+        let oversized = client.send(Data(repeating: 0x41, count: 2048))
+        #expect(oversized != .tooLarge, "2048 字节小于客户端上限，应真正发到服务端")
+        #expect(collector.semaphore.wait(timeout: .now() + 0.5) == .timedOut, "超限消息不应到达 handler")
         #expect(collector.received.count == 1)
+        #expect(SocketClient(path: path, maxMessageBytes: 1024).send(Data(repeating: 0x41, count: 2048)) == .tooLarge)
+    }
+
+    @Test func messageOfExactlyLimitIsDelivered() throws {
+        let path = shortSocketPath()
+        let collector = Collector()
+        let server = SocketServer(path: path, maxMessageBytes: 1024) { collector.append($0) }
+        try server.start()
+        defer { server.stop() }
+        let payload = Data(repeating: 0x41, count: 1024)
+        #expect(SocketClient(path: path, maxMessageBytes: 1024).send(payload) == .delivered)
+        #expect(collector.semaphore.wait(timeout: .now() + 2) == .success)
+        #expect(collector.received[0] == payload)
+    }
+
+    @Test func startIsGuardedAndStopIsIdempotent() throws {
+        let path = shortSocketPath()
+        let server = SocketServer(path: path) { _ in }
+        try server.start()
+        #expect(throws: (any Error).self) { try server.start() }
+        #expect(SocketClient(path: path).probe())
+        server.stop()
+        server.stop()
+        #expect(!FileManager.default.fileExists(atPath: path))
+        #expect(!SocketClient(path: path).probe())
+        let neverStarted = SocketServer(path: path) { _ in }
+        neverStarted.stop()
     }
 
     @Test func unavailableServerFailsFast() {

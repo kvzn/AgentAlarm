@@ -22,6 +22,7 @@ enum UnixSocketAddress {
 
 /// 向 App 的 Unix socket 发送一行 JSON。
 public struct SocketClient {
+    /// `timedOut` 也可能出现在载荷已完整写入、只是没等到对端关闭的情况，此时事件多半已送达；调用方不得据此重试。
     public enum SendResult: Equatable, Sendable { case delivered, unavailable, timedOut, tooLarge }
 
     public var path: String
@@ -63,6 +64,8 @@ public struct SocketClient {
         guard var address = UnixSocketAddress.make(path: path) else { return nil }
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { return nil }
+        var noSigPipe: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
         var tv = timeval(tv_sec: Int(timeout), tv_usec: Int32((timeout - floor(timeout)) * 1_000_000))
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
