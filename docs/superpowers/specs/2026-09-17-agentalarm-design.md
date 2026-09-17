@@ -39,7 +39,7 @@ agentalarm CLI  ──归一化、识别宿主──▶  Unix socket（一行 JS
 ```
 
 - **AgentAlarm.app**：SwiftUI `MenuBarExtra` 应用，`LSUIElement = true`，无 Dock 图标。负责 socket 服务、策略、输出、设置、hook 安装。
-- **agentalarm CLI**：命令行工具，随 App 打包在 `AgentAlarm.app/Contents/MacOS/agentalarm`。App 每次启动时在 `~/.local/bin/agentalarm` 建立或修复指向它的软链接。各 Agent 的 hook 配置引用软链接的绝对路径。
+- **agentalarm CLI**：命令行工具，随 App 打包在 `AgentAlarm.app/Contents/Helpers/agentalarm`（默认 APFS 卷大小写不敏感，`Contents/MacOS/agentalarm` 会与 App 主可执行文件冲突）。App 每次启动时在 `~/.local/bin/agentalarm` 建立或修复指向它的软链接。各 Agent 的 hook 配置引用软链接的绝对路径。
 - **AgentAlarmCore**：Swift Package，纯逻辑无 UI，被 App 和 CLI 共同链接。包含事件模型、适配器、标题解析器、提醒策略、配置安装器。
 
 App 未运行时 CLI 连接 socket 失败，直接丢弃事件并以 0 退出，因为此时提醒没有意义。
@@ -305,7 +305,7 @@ AgentAlarm/
   docs/
 ```
 
-App 与 CLI 两个 target 均依赖本地 package `AgentAlarmCore`；App target 的 Copy Files 阶段把 CLI 产物复制到 `Contents/MacOS/`。
+App 与 CLI 两个 target 均依赖本地 package `AgentAlarmCore`；App target 的 Copy Files 阶段把 CLI 产物复制到 `Contents/Helpers/`（默认 APFS 卷大小写不敏感，`Contents/MacOS/agentalarm` 会与 App 主可执行文件冲突）。
 
 ## 14. 测试策略
 
