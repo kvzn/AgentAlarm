@@ -47,6 +47,7 @@ final class AppModel {
     @ObservationIgnored private var server: SocketServer?
     @ObservationIgnored private let sound = SoundPlayer()
     @ObservationIgnored private let speech = SpeechQueue()
+    @ObservationIgnored private let banner = BannerCenter()
     @ObservationIgnored private let logger = Logger(subsystem: "com.jack.agentalarm", category: "policy")
     @ObservationIgnored private let socketLogger = Logger(subsystem: "com.jack.agentalarm", category: "socket")
 
@@ -62,6 +63,7 @@ final class AppModel {
     }
 
     func start() {
+        banner.requestAuthorization()
         do {
             try FileManager.default.createDirectory(at: paths.appSupport, withIntermediateDirectories: true,
                                                     attributes: [.posixPermissions: 0o700])
@@ -138,7 +140,12 @@ final class AppModel {
     }
 
     /// 提醒发生后的扩展点，Task 20 在这里发系统横幅。
-    func didAlert(_ event: AlarmEvent, title: String) {}
+    var bannerAuthorized: Bool { banner.authorized }
+
+    func didAlert(_ event: AlarmEvent, title: String) {
+        guard settings.bannerEnabled else { return }
+        banner.post(event: event, title: title)
+    }
 
     private func record(_ event: AlarmEvent, title: String, outcome: String) {
         log.insert(LogEntry(date: Date(), agent: event.agent, kind: event.kind, title: title, outcome: outcome), at: 0)
@@ -147,6 +154,7 @@ final class AppModel {
 
     func select(_ entry: WaitingEntry) {
         waiting.markSeen(id: entry.id)
+        HostActivator.activate(entry.host)
     }
 
     func pause(minutes: Int?) {

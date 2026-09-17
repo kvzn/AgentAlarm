@@ -22,6 +22,14 @@ struct MenuContent: View {
             Button(label(for: entry)) { model.select(entry) }
         }
         Divider()
+        Menu(model.isPaused ? "已暂停提醒" : "暂停提醒") {
+            Button("15 分钟") { model.pause(minutes: 15) }
+            Button("30 分钟") { model.pause(minutes: 30) }
+            Button("60 分钟") { model.pause(minutes: 60) }
+            Button("直到恢复") { model.pause(minutes: nil) }
+            Divider()
+            Button("恢复提醒") { model.resume() }.disabled(!model.isPaused)
+        }
         Button("测试提醒") { model.sendTestAlert() }
         SettingsLink { Text("设置…") }
         Divider()
