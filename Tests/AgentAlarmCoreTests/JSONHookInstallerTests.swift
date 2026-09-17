@@ -150,4 +150,16 @@ import Testing
         }
         #expect(try String(contentsOf: file, encoding: .utf8) == original)
     }
+
+    @Test func isInstalledSeesMarkerInsideCommentedFile() throws {
+        let dir = try makeTempDirectory()
+        let file = dir.appendingPathComponent("settings.json")
+        try "// note\n{\"hooks\":{\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"\(cli) hook claude\"}]}]}}"
+            .write(to: file, atomically: true, encoding: .utf8)
+        let inst = installer(dir)
+        #expect(inst.requiresManualEdit(fileURL: file))
+        #expect(inst.isInstalled(marker: marker, in: file))
+        try "// note\n{}".write(to: file, atomically: true, encoding: .utf8)
+        #expect(!inst.isInstalled(marker: marker, in: file))
+    }
 }

@@ -38,8 +38,15 @@ public struct JSONHookInstaller {
     }
 
     public func isInstalled(marker: String, in fileURL: URL) -> Bool {
-        guard let root = try? readRoot(fileURL) else { return false }
-        return Self.containsMarker(root, marker: marker)
+        do {
+            return Self.containsMarker(try readRoot(fileURL), marker: marker)
+        } catch InstallerError.containsComments {
+            // 含注释的文件无法解析，但仍要如实报告是否已写入过我们的条目。
+            let text = (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
+            return text.replacingOccurrences(of: "'", with: "").contains(marker)
+        } catch {
+            return false
+        }
     }
 
     public func requiresManualEdit(fileURL: URL) -> Bool {

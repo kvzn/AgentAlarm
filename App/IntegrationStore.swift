@@ -34,6 +34,10 @@ final class IntegrationStore {
             if try symlinks.ensure(link: manager.paths.cliLink, target: cliTarget) {
                 logger.info("symlink repaired -> \(self.cliTarget.path, privacy: .public)")
             }
+            lastError = nil
+        } catch SymlinkError.targetMissing {
+            lastError = "App 内未找到命令行工具（\(cliTarget.path)），软链接未更新；请从正式位置运行 AgentAlarm 后再试"
+            logger.error("cli target missing at \(self.cliTarget.path, privacy: .public)")
         } catch {
             lastError = "无法创建 ~/.local/bin/agentalarm：\(error)"
             logger.error("symlink failed: \(String(describing: error), privacy: .public)")

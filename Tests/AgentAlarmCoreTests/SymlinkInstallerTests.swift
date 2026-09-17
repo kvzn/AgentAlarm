@@ -25,6 +25,20 @@ import Testing
         #expect(installer.status(link: link, expectedTarget: target) == .ok)
     }
 
+    @Test func refusesMissingTargetAndReportsDangling() throws {
+        let dir = try makeTempDirectory()
+        let link = dir.appendingPathComponent("bin/agentalarm")
+        let target = dir.appendingPathComponent("AgentAlarm.app/Contents/Helpers/agentalarm")
+        let installer = SymlinkInstaller()
+        #expect(throws: SymlinkError.targetMissing) { try installer.ensure(link: link, target: target) }
+        #expect(installer.status(link: link, expectedTarget: target) == .missing)
+        try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "binary".write(to: target, atomically: true, encoding: .utf8)
+        #expect(try installer.ensure(link: link, target: target) == true)
+        try FileManager.default.removeItem(at: target)
+        #expect(installer.status(link: link, expectedTarget: target) == .dangling(target.path))
+    }
+
     @Test func refusesToReplaceRegularFile() throws {
         let dir = try makeTempDirectory()
         let link = dir.appendingPathComponent("agentalarm")

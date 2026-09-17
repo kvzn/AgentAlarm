@@ -5,7 +5,7 @@ public enum AgentIntegrationStatus: Equatable, Sendable {
     case installed
     case awaitingTrust
     case verified
-    case manualRequired(String)
+    case manualRequired(reason: String, installed: Bool)
 }
 
 public enum IntegrationError: Error, Equatable {
@@ -67,7 +67,11 @@ public struct AgentIntegrationManager {
         } else {
             guard AgentNames.supported.contains(agent), let file = configFile(agent) else { return .notInstalled }
             if fileManager.fileExists(atPath: file.path), jsonInstaller.requiresManualEdit(fileURL: file) {
-                return .manualRequired("配置文件含注释，自动改写会丢失注释，请手动粘贴片段")
+                let present = jsonInstaller.isInstalled(marker: HookTemplates.marker(agent: agent), in: file)
+                let reason = present
+                    ? "配置文件含注释且已包含 AgentAlarm 的 hooks，无法自动管理；如需卸载请手动删除 command 含 /.local/bin/agentalarm 的条目"
+                    : "配置文件含注释，自动改写会丢失注释，请手动粘贴片段"
+                return .manualRequired(reason: reason, installed: present)
             }
             installed = jsonInstaller.isInstalled(marker: HookTemplates.marker(agent: agent), in: file)
         }

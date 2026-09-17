@@ -51,6 +51,22 @@ import Testing
         #expect(manager.manualSnippet("opencode").hasPrefix(OpenCodePluginInstaller.markerLine))
     }
 
+    @Test func commentedConfigThatAlreadyHasOurHooksReportsInstalled() throws {
+        let home = try makeTempDirectory()
+        let manager = AgentIntegrationManager(paths: AgentPaths(home: home))
+        try manager.install("claude")
+        let file = manager.paths.claudeSettings
+        let withComment = "// added by hand\n" + (try String(contentsOf: file, encoding: .utf8))
+        try withComment.write(to: file, atomically: true, encoding: .utf8)
+        guard case .manualRequired(let reason, let installed) = manager.status("claude", verified: false) else {
+            Issue.record("expected manualRequired"); return
+        }
+        #expect(installed)
+        #expect(reason.contains("手动删除"))
+        guard case .manualRequired(_, let freshInstalled) = manager.status("gemini", verified: false) else { return }
+        #expect(!freshInstalled)
+    }
+
     @Test func unsupportedAgentThrows() throws {
         let manager = AgentIntegrationManager(paths: AgentPaths(home: try makeTempDirectory()))
         #expect(throws: IntegrationError.unsupportedAgent("cursor")) { try manager.install("cursor") }

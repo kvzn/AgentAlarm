@@ -31,6 +31,7 @@ struct IntegrationsTab: View {
         case .missing: return "缺失"
         case .wrongTarget(let target): return "指向错误：\(target)"
         case .notASymlink: return "该路径是普通文件，请先手动移走"
+        case .dangling(let target): return "目标不存在：\(target)"
         }
     }
 }
@@ -46,13 +47,19 @@ struct AgentRow: View {
         return false
     }
 
+    /// 只有「含注释且尚未写入我们的条目」才需要手动片段；已写入的只需卸载指引。
+    private var snippetNeeded: Bool {
+        if case .manualRequired(_, false) = status { return true }
+        return false
+    }
+
     private var statusText: String {
         switch status {
         case .notInstalled: return "未接入"
         case .installed: return "已接入，等待收到第一条事件"
         case .awaitingTrust: return "已写入 hooks.json，待信任"
         case .verified: return "已验证"
-        case .manualRequired(let reason): return reason
+        case .manualRequired(let reason, _): return reason
         }
     }
 
@@ -68,7 +75,7 @@ struct AgentRow: View {
                 Text("在任一 Codex 终端会话中运行 /hooks 并信任 AgentAlarm；收到第一条 Codex 事件后自动变为已验证。")
                     .font(.caption)
             }
-            if manualRequired {
+            if snippetNeeded {
                 DisclosureGroup("手动配置片段") {
                     TextEditor(text: .constant(store.snippet(agent)))
                         .font(.system(.caption, design: .monospaced))
