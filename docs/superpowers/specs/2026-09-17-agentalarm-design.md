@@ -155,15 +155,15 @@ Agent 显示名固定：`claude` → Claude Code，`codex` → Codex，`gemini` 
 ```json
 {
   "hooks": {
-    "Stop": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "async": true, "timeout": 5 }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "timeout": 5 }] }],
     "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "timeout": 5 }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "async": true, "timeout": 5 }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "timeout": 5 }] }],
     "SessionEnd": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "timeout": 2 }] }]
   }
 }
 ```
 
-`PermissionRequest` 不用 `async`，因为该事件允许 hook 返回决策，异步语义未经验证；CLI 足够快，同步也不影响体验。
+Codex 0.146 实测会跳过带 `async` 的 hook（提示 "async hooks are not supported yet"），因此四个事件全部同步执行，不写 `async` 键；CLI 在几十毫秒内返回，不影响回合。
 
 映射：
 

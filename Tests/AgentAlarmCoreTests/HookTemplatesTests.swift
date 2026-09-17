@@ -27,8 +27,11 @@ import Testing
     @Test func codexTemplate() {
         let t = HookTemplates.codex(cliPath: cli)
         #expect(Set(t.keys) == ["Stop", "PermissionRequest", "UserPromptSubmit", "SessionEnd"])
-        #expect(hooks(t, "Stop")[0]["async"] as? Bool == true)
-        #expect(hooks(t, "PermissionRequest")[0]["async"] == nil)
+        // Codex 0.146 不支持 async hooks，模板必须全部同步
+        for event in ["Stop", "PermissionRequest", "UserPromptSubmit", "SessionEnd"] {
+            #expect(hooks(t, event)[0]["async"] == nil, "\(event)")
+        }
+        #expect(hooks(t, "Stop")[0]["timeout"] as? Int == 5)
         #expect(hooks(t, "SessionEnd")[0]["timeout"] as? Int == 2)
         #expect((t["Stop"] as? [[String: Any]])?[0]["matcher"] == nil)
     }

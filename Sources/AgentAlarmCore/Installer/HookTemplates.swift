@@ -27,15 +27,16 @@ public enum HookTemplates {
         ]
     }
 
+    /// Codex 0.146 实测会跳过带 `async` 的 hook（"async hooks are not supported yet"），
+    /// 所以全部同步执行；CLI 本身在几十毫秒内返回，不会拖住回合。
     public static func codex(cliPath: String) -> [String: Any] {
         let cmd = command(cliPath: cliPath, agent: "codex")
-        let asyncHook: [String: Any] = ["type": "command", "command": cmd, "async": true, "timeout": 5]
         let syncHook: [String: Any] = ["type": "command", "command": cmd, "timeout": 5]
         let endHook: [String: Any] = ["type": "command", "command": cmd, "timeout": 2]
         return [
-            "Stop": [["hooks": [asyncHook]]],
+            "Stop": [["hooks": [syncHook]]],
             "PermissionRequest": [["hooks": [syncHook]]],
-            "UserPromptSubmit": [["hooks": [asyncHook]]],
+            "UserPromptSubmit": [["hooks": [syncHook]]],
             "SessionEnd": [["hooks": [endHook]]],
         ]
     }
