@@ -1,0 +1,10 @@
+{
+  "session_id": "session-2026-09-17T03-00-abcd1234",
+  "transcript_path": "/Users/jack/.gemini/tmp/agentalarm/chats/session-2026-09-17T03-00-abcd1234.json",
+  "cwd": "/Users/jack/Workspaces/AgentAlarm",
+  "hook_event_name": "Notification",
+  "timestamp": "2026-09-17T03:00:05.000Z",
+  "notification_type": "ToolPermission",
+  "message": "Gemini wants to run: npm test",
+  "details": {}
+}

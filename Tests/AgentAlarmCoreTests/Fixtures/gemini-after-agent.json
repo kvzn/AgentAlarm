@@ -1,0 +1,10 @@
+{
+  "session_id": "session-2026-09-17T03-00-abcd1234",
+  "transcript_path": "/Users/jack/.gemini/tmp/agentalarm/chats/session-2026-09-17T03-00-abcd1234.json",
+  "cwd": "/Users/jack/Workspaces/AgentAlarm",
+  "hook_event_name": "AfterAgent",
+  "timestamp": "2026-09-17T03:00:00.000Z",
+  "prompt": "fix the bug",
+  "prompt_response": "I fixed the bug in main.swift and added a test.",
+  "stop_hook_active": false
+}
