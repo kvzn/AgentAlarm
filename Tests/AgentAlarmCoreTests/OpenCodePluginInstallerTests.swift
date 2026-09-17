@@ -42,4 +42,10 @@ import Testing
         try installer.uninstall(pluginsDirectory: dir)
         #expect(FileManager.default.fileExists(atPath: file.path))
     }
+
+    @Test func cliPathIsEmbeddedAsJSONStringLiteral() {
+        let source = OpenCodePluginInstaller.pluginSource(cliPath: "/tmp/a\"b\\c\u{01}d")
+        #expect(source.contains("const CLI = \"/tmp/a\\\"b\\\\c\\u0001d\""))
+        #expect(!source.contains("\\/"))
+    }
 }

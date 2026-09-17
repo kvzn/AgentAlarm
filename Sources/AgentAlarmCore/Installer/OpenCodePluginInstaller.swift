@@ -9,8 +9,9 @@ public struct OpenCodePluginInstaller {
     public init(fileManager: FileManager = .default) { self.fileManager = fileManager }
 
     public static func pluginSource(cliPath: String) -> String {
-        let escaped = cliPath.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        let quotedPath = "\"\(escaped)\""
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.withoutEscapingSlashes]
+        let quotedPath = String(decoding: (try? encoder.encode(cliPath)) ?? Data("\"\"".utf8), as: UTF8.self)
         return """
         \(markerLine)
         // 由 AgentAlarm.app 生成，卸载时由 App 删除；手动修改会在下次接入时被覆盖。
