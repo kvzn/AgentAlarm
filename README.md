@@ -22,7 +22,7 @@ App 启动后会在 `~/.local/bin/agentalarm` 建立指向 App 内 CLI（`AgentA
 | Agent | 写入位置 | 备注 |
 |---|---|---|
 | Claude Code | `~/.claude/settings.json` 的 `hooks` | Stop、Notification、UserPromptSubmit、SessionEnd |
-| Codex | `~/.codex/hooks.json` | 需在 Codex TUI 运行一次 `/hooks` 信任；不改 `config.toml` 的 `notify` |
+| Codex | `~/.codex/hooks.json` | 首次需信任：在终端启动一次 `codex`，启动时会弹出 "Hooks need review"，选 "Trust all and continue"（或随时输入 `/hooks`）；信任记录写在 `config.toml` 的 `[hooks.state]`，hooks 内容变化后要重新信任。Codex 桌面版与 VS Code 共用这份配置，信任后新开会话生效；不改 `config.toml` 的 `notify` |
 | Gemini CLI | `~/.gemini/settings.json` 的 `hooks` | AfterAgent、Notification、BeforeAgent、SessionEnd |
 | OpenCode | `~/.config/opencode/plugins/agentalarm.ts` | 插件自带会话标题 |
 
