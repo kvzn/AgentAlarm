@@ -30,12 +30,18 @@ public final class TitleService: @unchecked Sendable {
         let modified = event.transcriptPath.flatMap {
             (try? FileManager.default.attributesOfItem(atPath: $0))?[.modificationDate] as? Date
         }
-        lock.lock(); defer { lock.unlock() }
-        if let modified, let entry = cache[key], entry.modified == modified {
-            return entry.resolution
+        if let modified {
+            lock.lock()
+            let hit = cache[key]
+            lock.unlock()
+            if let hit, hit.modified == modified { return hit.resolution }
         }
         let resolution = resolve(event)
-        if let modified { cache[key] = (modified, resolution) }
+        if let modified {
+            lock.lock()
+            cache[key] = (modified, resolution)
+            lock.unlock()
+        }
         return resolution
     }
 }
