@@ -46,14 +46,16 @@ public enum ProcessTree {
 
     public static func detectHost(from ancestors: [Ancestor],
                                   bundleReader: (String) -> (bundleId: String, name: String)?) -> HostInfo? {
-        guard let firstIndex = ancestors.firstIndex(where: { appBundlePath(in: $0.path) != nil }),
-              let bundlePath = appBundlePath(in: ancestors[firstIndex].path),
-              let info = bundleReader(bundlePath) else { return nil }
-        var pid = ancestors[firstIndex].pid
-        for ancestor in ancestors[(firstIndex + 1)...] where appBundlePath(in: ancestor.path) == bundlePath {
-            pid = ancestor.pid
+        for (index, ancestor) in ancestors.enumerated() {
+            guard let bundlePath = appBundlePath(in: ancestor.path),
+                  let info = bundleReader(bundlePath) else { continue }
+            var pid = ancestor.pid
+            for later in ancestors[(index + 1)...] where appBundlePath(in: later.path) == bundlePath {
+                pid = later.pid
+            }
+            return HostInfo(bundleId: info.bundleId, pid: pid, name: info.name)
         }
-        return HostInfo(bundleId: info.bundleId, pid: pid, name: info.name)
+        return nil
     }
 
     public static func detectHost() -> HostInfo? {

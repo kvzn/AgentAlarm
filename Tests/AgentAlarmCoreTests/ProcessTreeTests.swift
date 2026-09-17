@@ -31,4 +31,16 @@ import Testing
         _ = ProcessTree.detectHost()
         #expect(ProcessTree.parentPid(of: 1) == nil || ProcessTree.parentPid(of: 1) == 0)
     }
+
+    @Test func bundleWithoutIdentifierIsSkipped() {
+        let ancestors = [
+            ProcessTree.Ancestor(pid: 9, path: "/tmp/Broken.app/Contents/MacOS/Broken"),
+            ProcessTree.Ancestor(pid: 5, path: "/Applications/iTerm.app/Contents/MacOS/iTerm2"),
+            ProcessTree.Ancestor(pid: 1, path: "/sbin/launchd"),
+        ]
+        let host = ProcessTree.detectHost(from: ancestors) { bundlePath in
+            bundlePath == "/Applications/iTerm.app" ? ("com.googlecode.iterm2", "iTerm") : nil
+        }
+        #expect(host == HostInfo(bundleId: "com.googlecode.iterm2", pid: 5, name: "iTerm"))
+    }
 }
