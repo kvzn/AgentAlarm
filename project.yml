@@ -1,0 +1,28 @@
+name: AgentAlarm
+options:
+  bundleIdPrefix: com.jack
+  deploymentTarget:
+    macOS: "14.0"
+  generateEmptyDirectories: true
+  createIntermediateGroups: true
+packages:
+  AgentAlarmCore:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  agentalarm:
+    type: tool
+    platform: macOS
+    sources: [CLI]
+    dependencies:
+      - package: AgentAlarmCore
+    settings:
+      base:
+        PRODUCT_NAME: agentalarm
