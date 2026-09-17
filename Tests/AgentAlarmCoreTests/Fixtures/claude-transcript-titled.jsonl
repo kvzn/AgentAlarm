@@ -1,0 +1,5 @@
+{"type":"user","message":{"role":"user","content":"帮我设计一个提醒工具"},"sessionId":"S1","uuid":"u1","timestamp":"2026-09-17T03:00:00.000Z"}
+{"type":"custom-title","customTitle":"旧标题","sessionId":"S1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"好的，我先调研。"}]},"sessionId":"S1","uuid":"a1","timestamp":"2026-09-17T03:00:05.000Z"}
+{"type":"custom-title","customTitle":"AgentAlarm 设计","sessionId":"S1"}
+{"type":"last-prompt","lastPrompt":"继续","leafUuid":"a1","sessionId":"S1"}
