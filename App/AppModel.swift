@@ -42,6 +42,7 @@ final class AppModel {
 
     let settings: AppSettings
     let paths: AgentPaths
+    let integrations: IntegrationStore
 
     @ObservationIgnored private let titleService: TitleService
     @ObservationIgnored private var server: SocketServer?
@@ -56,6 +57,7 @@ final class AppModel {
     init(settings: AppSettings = .shared, paths: AgentPaths = .standard) {
         self.settings = settings
         self.paths = paths
+        integrations = IntegrationStore(manager: AgentIntegrationManager(paths: paths), settings: settings)
         policy = AlertPolicy(settings: settings.policySettings)
         titleService = TitleService(claude: ClaudeTitleResolver(),
                                     codex: CodexTitleResolver(codexHome: paths.codexHome),
@@ -63,6 +65,7 @@ final class AppModel {
     }
 
     func start() {
+        integrations.repairSymlink()
         banner.requestAuthorization()
         do {
             try FileManager.default.createDirectory(at: paths.appSupport, withIntermediateDirectories: true,
@@ -90,8 +93,9 @@ final class AppModel {
             return
         }
         // 只有真实 hook 事件才算接入已验证；test 合成事件不算。
-        if event.source.hookEventName != "test" {
+        if event.source.hookEventName != "test", !settings.isVerified(event.agent) {
             settings.markVerified(event.agent)
+            integrations.refresh()
         }
         guard event.kind.isAlerting else {
             _ = waiting.apply(event, title: "", now: Date())
