@@ -7,6 +7,7 @@ public struct GeminiAdapter: HookAdapter {
     public func map(payload: [String: Any], context: AdapterContext) -> AlarmEvent? {
         guard let sessionId = payload.string("session_id"), !sessionId.isEmpty,
               let hookName = payload.string("hook_event_name") else { return nil }
+        let notificationType = payload.string("notification_type")
         let kind: EventKind
         var message: String?
         switch hookName {
@@ -16,6 +17,7 @@ public struct GeminiAdapter: HookAdapter {
                 message = TextTruncation.truncate(response, to: 200)
             }
         case "Notification":
+            guard notificationType == "ToolPermission" else { return nil }
             kind = .needsPermission
             message = payload.string("message").map { TextTruncation.truncate($0, to: 200) }
         case "BeforeAgent":
@@ -32,6 +34,6 @@ public struct GeminiAdapter: HookAdapter {
             message: message,
             host: context.host, timestamp: context.now,
             source: EventSource(hookEventName: hookName,
-                                notificationType: payload.string("notification_type")))
+                                notificationType: notificationType))
     }
 }

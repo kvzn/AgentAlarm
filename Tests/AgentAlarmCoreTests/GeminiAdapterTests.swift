@@ -32,4 +32,12 @@ import Testing
         payload["hook_event_name"] = "AfterTool"
         #expect(adapter.map(payload: payload, context: context) == nil)
     }
+
+    @Test func notificationWithOtherTypeIsIgnored() throws {
+        var payload = try fixtureJSON("gemini-notification.json")
+        payload["notification_type"] = "SomethingElse"
+        #expect(adapter.map(payload: payload, context: context) == nil)
+        payload["notification_type"] = nil
+        #expect(adapter.map(payload: payload, context: context) == nil)
+    }
 }
