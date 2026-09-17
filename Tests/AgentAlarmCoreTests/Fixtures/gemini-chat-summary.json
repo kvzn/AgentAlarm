@@ -1,0 +1,12 @@
+{
+  "sessionId": "session-2026-09-17T03-00-abcd1234",
+  "projectHash": "abc",
+  "startTime": "2026-09-17T03:00:00.000Z",
+  "lastUpdated": "2026-09-17T03:05:00.000Z",
+  "kind": "main",
+  "summary": "Fix login crash and add regression test",
+  "messages": [
+    { "id": "m1", "timestamp": "2026-09-17T03:00:00.000Z", "type": "user", "content": "fix the login crash" },
+    { "id": "m2", "timestamp": "2026-09-17T03:00:10.000Z", "type": "gemini", "content": "Done." }
+  ]
+}
