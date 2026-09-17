@@ -15,3 +15,15 @@ public protocol HookAdapter {
     var agent: String { get }
     func map(payload: [String: Any], context: AdapterContext) -> AlarmEvent?
 }
+
+public enum AdapterRegistry {
+    public static func adapter(for agent: String) -> (any HookAdapter)? {
+        switch agent {
+        case "claude": return ClaudeAdapter()
+        case "codex": return CodexAdapter()
+        case "gemini": return GeminiAdapter()
+        case "opencode": return OpenCodeAdapter()
+        default: return nil
+        }
+    }
+}
