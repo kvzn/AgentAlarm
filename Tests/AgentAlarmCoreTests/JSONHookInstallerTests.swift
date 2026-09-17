@@ -72,7 +72,11 @@ import Testing
         try inst.install(hooks: HookTemplates.claude(cliPath: cli), marker: marker, into: file)
         let backups = try FileManager.default.contentsOfDirectory(atPath: dir.appendingPathComponent("backups").path)
         #expect(backups.count == 1)
-        #expect(backups[0].hasPrefix("settings.json."))
+        #expect(backups[0].hasPrefix("claude-settings.json."))
+        let backupText = try String(contentsOf: dir.appendingPathComponent("backups").appendingPathComponent(backups[0]), encoding: .utf8)
+        #expect(backupText == "{\"model\":\"opus\",\"permissions\":{\"allow\":[\"Bash(ls)\"]}}")
+        try inst.install(hooks: HookTemplates.claude(cliPath: cli), marker: marker, into: file)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.appendingPathComponent("backups").path).count == 1, "无变化的重复安装不再备份")
         try inst.uninstall(marker: marker, from: file)
         let restored = try readJSON(file)
         #expect(restored["hooks"] == nil)
@@ -116,5 +120,34 @@ import Testing
         }
         let backups = try FileManager.default.contentsOfDirectory(atPath: dir.appendingPathComponent("backups").path)
         #expect(backups.count == 3)
+    }
+
+    @Test func quotedCliPathStillMatchesMarker() {
+        let quoted = HookTemplates.claude(cliPath: "/Users/some one/.local/bin/agentalarm")
+        let root = JSONHookInstaller.merge(hooks: quoted, into: [:], marker: marker)
+        #expect(JSONHookInstaller.containsMarker(root, marker: marker))
+        let twice = JSONHookInstaller.merge(hooks: quoted, into: root, marker: marker)
+        #expect(NSDictionary(dictionary: twice) == NSDictionary(dictionary: root))
+        #expect(JSONHookInstaller.remove(marker: marker, from: root)["hooks"] == nil)
+    }
+
+    @Test func nonArrayEventValuesArePreserved() throws {
+        let odd: [String: Any] = ["hooks": [
+            "Stop": "keep-me",
+            "SessionEnd": [["hooks": [["type": "command", "command": "\(cli) hook claude"]]]],
+        ]]
+        let cleaned = JSONHookInstaller.remove(marker: marker, from: odd)
+        #expect((cleaned["hooks"] as? [String: Any])?["Stop"] as? String == "keep-me")
+        #expect((cleaned["hooks"] as? [String: Any])?["SessionEnd"] == nil)
+        let merged = JSONHookInstaller.merge(hooks: HookTemplates.claude(cliPath: cli), into: ["hooks": ["Stop": "keep-me"]], marker: marker)
+        #expect((merged["hooks"] as? [String: Any])?["Stop"] as? String == "keep-me")
+        let dir = try makeTempDirectory()
+        let file = dir.appendingPathComponent("s.json")
+        let original = "{\"hooks\":{\"Stop\":\"keep-me\"}}"
+        try original.write(to: file, atomically: true, encoding: .utf8)
+        #expect(throws: InstallerError.eventNotArray("Stop")) {
+            try installer(dir).install(hooks: HookTemplates.claude(cliPath: cli), marker: marker, into: file)
+        }
+        #expect(try String(contentsOf: file, encoding: .utf8) == original)
     }
 }

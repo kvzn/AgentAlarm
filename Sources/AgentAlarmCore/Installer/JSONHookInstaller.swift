@@ -4,6 +4,7 @@ public enum InstallerError: Error, Equatable {
     case containsComments
     case rootNotObject
     case hooksNotObject
+    case eventNotArray(String)
 }
 
 /// 把 hook 条目幂等地合并进 JSON 配置文件，或精确移除；写前备份，原子写入。
@@ -22,6 +23,7 @@ public struct JSONHookInstaller {
     public func install(hooks: [String: Any], marker: String, into fileURL: URL) throws {
         let root = try readRoot(fileURL)
         let merged = try Self.mergeChecked(hooks: hooks, into: root, marker: marker)
+        if fileManager.fileExists(atPath: fileURL.path), NSDictionary(dictionary: merged) == NSDictionary(dictionary: root) { return }
         try backupIfExists(fileURL)
         try write(merged, to: fileURL)
     }
@@ -30,6 +32,7 @@ public struct JSONHookInstaller {
         guard fileManager.fileExists(atPath: fileURL.path) else { return }
         let root = try readRoot(fileURL)
         let cleaned = Self.remove(marker: marker, from: root)
+        if NSDictionary(dictionary: cleaned) == NSDictionary(dictionary: root) { return }
         try backupIfExists(fileURL)
         try write(cleaned, to: fileURL)
     }
@@ -69,12 +72,14 @@ public struct JSONHookInstaller {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd-HHmmss-SSS"
-        let name = fileURL.lastPathComponent
-        let target = backupDirectory.appendingPathComponent("\(name).\(formatter.string(from: timeSource.now))")
+        let parent = fileURL.deletingLastPathComponent().lastPathComponent
+            .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let prefix = "\(parent)-\(fileURL.lastPathComponent)"
+        let target = backupDirectory.appendingPathComponent("\(prefix).\(formatter.string(from: timeSource.now))")
         if fileManager.fileExists(atPath: target.path) { try fileManager.removeItem(at: target) }
         try fileManager.copyItem(at: fileURL, to: target)
         let siblings = (try? fileManager.contentsOfDirectory(atPath: backupDirectory.path))?
-            .filter { $0.hasPrefix("\(name).") }.sorted(by: >) ?? []
+            .filter { $0.hasPrefix("\(prefix).") }.sorted(by: >) ?? []
         for stale in siblings.dropFirst(backupsToKeep) {
             try? fileManager.removeItem(at: backupDirectory.appendingPathComponent(stale))
         }
@@ -103,6 +108,10 @@ public struct JSONHookInstaller {
 
     static func mergeChecked(hooks: [String: Any], into root: [String: Any], marker: String) throws -> [String: Any] {
         if let existing = root["hooks"], !(existing is [String: Any]) { throw InstallerError.hooksNotObject }
+        let existingHooks = root["hooks"] as? [String: Any] ?? [:]
+        for event in hooks.keys {
+            if let value = existingHooks[event], !(value is [Any]) { throw InstallerError.eventNotArray(event) }
+        }
         return merge(hooks: hooks, into: root, marker: marker)
     }
 
@@ -110,6 +119,7 @@ public struct JSONHookInstaller {
         var result = root
         var hooksDict = root["hooks"] as? [String: Any] ?? [:]
         for (event, value) in hooks {
+            if let existing = hooksDict[event], !(existing is [Any]) { continue }
             let newGroups = value as? [Any] ?? []
             var groups = hooksDict[event] as? [Any] ?? []
             if !groups.contains(where: { groupContainsMarker($0, marker: marker) }) {
@@ -125,7 +135,7 @@ public struct JSONHookInstaller {
         var result = root
         guard var hooksDict = root["hooks"] as? [String: Any] else { return result }
         for (event, value) in hooksDict {
-            let groups = value as? [Any] ?? []
+            guard let groups = value as? [Any] else { continue }
             let kept: [Any] = groups.compactMap { group in
                 guard var dict = group as? [String: Any], let hooks = dict["hooks"] as? [Any] else { return group }
                 let remaining = hooks.filter { !hookContainsMarker($0, marker: marker) }
@@ -153,6 +163,7 @@ public struct JSONHookInstaller {
 
     static func hookContainsMarker(_ hook: Any, marker: String) -> Bool {
         guard let dict = hook as? [String: Any], let command = dict["command"] as? String else { return false }
-        return command.contains(marker)
+        // cliPath 含空格时 command 会被单引号包裹，比较前去掉引号。
+        return command.replacingOccurrences(of: "'", with: "").contains(marker)
     }
 }
