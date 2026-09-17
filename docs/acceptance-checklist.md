@@ -23,7 +23,7 @@
 ## Codex
 - [ ] 打开开关后 `~/.codex/hooks.json` 生成，`config.toml` 的 `notify` 未变
 - [ ] TUI 里 `/hooks` 信任后：回合结束 → 播报，标题为线程名或首条消息
-- [ ] 授权请求 → "需要授权"
+- [ ] 执行需要审批的命令时**不**产生"需要授权"提醒（Codex 的 PermissionRequest 对每次工具调用都触发，已不接入）
 - [ ] VS Code 扩展中的 Codex 会话 → 同样触发
 - [ ] Codex 桌面版（ChatGPT.app）是否触发 hooks：记录结果 ______
 

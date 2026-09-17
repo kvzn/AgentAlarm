@@ -26,9 +26,10 @@ import Testing
 
     @Test func codexTemplate() {
         let t = HookTemplates.codex(cliPath: cli)
-        #expect(Set(t.keys) == ["Stop", "PermissionRequest", "UserPromptSubmit", "SessionEnd"])
+        // 不安装 PermissionRequest：Codex Desktop 对每次工具调用都触发它，会产生大量误报的"需要授权"
+        #expect(Set(t.keys) == ["Stop", "UserPromptSubmit", "SessionEnd"])
         // Codex 0.146 不支持 async hooks，模板必须全部同步
-        for event in ["Stop", "PermissionRequest", "UserPromptSubmit", "SessionEnd"] {
+        for event in ["Stop", "UserPromptSubmit", "SessionEnd"] {
             #expect(hooks(t, event)[0]["async"] == nil, "\(event)")
         }
         #expect(hooks(t, "Stop")[0]["timeout"] as? Int == 5)

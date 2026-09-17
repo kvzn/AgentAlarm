@@ -156,7 +156,6 @@ Agent 显示名固定：`claude` → Claude Code，`codex` → Codex，`gemini` 
 {
   "hooks": {
     "Stop": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "timeout": 5 }] }],
-    "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "timeout": 5 }] }],
     "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "timeout": 5 }] }],
     "SessionEnd": [{ "hooks": [{ "type": "command", "command": "/Users/jack/.local/bin/agentalarm hook codex", "timeout": 2 }] }]
   }
@@ -170,12 +169,12 @@ Codex 0.146 实测会跳过带 `async` 的 hook（提示 "async hooks are not su
 | 原始事件 | 统一 kind | message |
 |---|---|---|
 | `Stop` | `turn_complete` | `last_assistant_message` 前 200 字 |
-| `PermissionRequest` | `needs_permission` | `tool_name`，若 `tool_input.command` 存在则附上 |
+| `PermissionRequest` | 忽略 | Codex Desktop 0.155 实测对每次工具调用都触发（含只读命令），与是否弹窗无关，payload 无可区分字段，不能当作"等待授权"信号；模板也不安装该事件 |
 | `UserPromptSubmit` | `resumed` | |
 | `SessionEnd` | `ended` | |
 | 其他 | 忽略 | |
 
-Codex 向用户提问没有 hook，v1 接受该缺口。
+Codex 向用户提问没有 hook；"等待授权"因上述原因也不可靠。v1 对 Codex 只提醒回合结束，接受这两个缺口。
 
 信任步骤：Codex 只执行用户在 TUI 中用 `/hooks` 信任过的非托管 hooks。安装后 App 在该 Agent 的状态区显示提示"在任一 Codex 终端会话中运行 /hooks 并信任 AgentAlarm"，直到 App 收到第一条 Codex 事件后自动变为"已验证"。
 

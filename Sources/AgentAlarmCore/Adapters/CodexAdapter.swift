@@ -16,8 +16,9 @@ public struct CodexAdapter: HookAdapter {
                 message = TextTruncation.truncate(last, to: 200)
             }
         case "PermissionRequest":
-            kind = .needsPermission
-            message = Self.permissionSummary(payload)
+            // Codex Desktop 0.155 实测对每次 Bash 调用都触发该 hook（含只读命令），与是否弹窗无关，
+            // payload 里也没有可区分的字段，因此不能当作"等待授权"的信号，直接忽略。
+            return nil
         case "UserPromptSubmit":
             kind = .resumed
         case "SessionEnd":
@@ -35,14 +36,4 @@ public struct CodexAdapter: HookAdapter {
             source: EventSource(hookEventName: hookName))
     }
 
-    static func permissionSummary(_ payload: [String: Any]) -> String? {
-        guard let tool = payload.string("tool_name"), !tool.isEmpty else { return nil }
-        let input = payload.dictionary("tool_input") ?? [:]
-        var command = input.string("command")
-        if command == nil, let parts = input.array("command") as? [String] {
-            command = parts.joined(separator: " ")
-        }
-        guard let command, !command.isEmpty else { return tool }
-        return TextTruncation.truncate("\(tool): \(command)", to: 200)
-    }
 }
