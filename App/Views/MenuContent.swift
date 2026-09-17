@@ -31,7 +31,7 @@ struct MenuContent: View {
             Button("恢复提醒") { model.resume() }.disabled(!model.isPaused)
         }
         Button("测试提醒") { model.sendTestAlert() }
-        SettingsLink { Text("设置…") }
+        Button("设置…") { model.openSettings() }
         Divider()
         Button("退出 AgentAlarm") { NSApp.terminate(nil) }
     }

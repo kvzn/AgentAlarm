@@ -59,6 +59,8 @@ final class AppModel {
     private(set) var log: [LogEntry] = []
     private(set) var policy: AlertPolicy
     var lastError: String?
+    /// 菜单栏图标是否被系统隐藏（菜单栏已满）；设置页据此显示提示。
+    private(set) var menuBarIconHidden = false
 
     let settings: AppSettings
     let paths: AgentPaths
@@ -69,6 +71,10 @@ final class AppModel {
     @ObservationIgnored private let sound = SoundPlayer()
     @ObservationIgnored private let speech = SpeechQueue()
     @ObservationIgnored private let banner = BannerCenter()
+    @ObservationIgnored private let menuBarMonitor = MenuBarVisibilityMonitor()
+    @ObservationIgnored private let settingsWindow = SettingsWindowController()
+    @ObservationIgnored private var didNotifyHiddenIcon = false
+    @ObservationIgnored private let outputLogger = Logger(subsystem: "com.jack.agentalarm", category: "output")
     @ObservationIgnored private let logger = Logger(subsystem: "com.jack.agentalarm", category: "policy")
     @ObservationIgnored private let socketLogger = Logger(subsystem: "com.jack.agentalarm", category: "socket")
 
@@ -103,9 +109,12 @@ final class AppModel {
             lastError = "无法监听 socket：\(error)"
             socketLogger.error("listen failed: \(String(describing: error), privacy: .public)")
         }
+        menuBarMonitor.onChange = { [weak self] state in self?.menuBarStateChanged(state) }
+        menuBarMonitor.start()
     }
 
     func stop() {
+        menuBarMonitor.stop()
         server?.stop()
         server = nil
     }
@@ -116,6 +125,10 @@ final class AppModel {
 
     /// 由 EventSequencer 按到达顺序在主线程调用。
     func handle(_ data: Data) async {
+        if let control = ControlCoding.decode(data) {
+            handleControl(control)
+            return
+        }
         guard let event = try? EventCoding.decode(data) else {
             socketLogger.error("undecodable event, \(data.count) bytes")
             return
@@ -169,6 +182,34 @@ final class AppModel {
             record(event, title: displayTitle, outcome: speak ? "alert + speech" : "alert, speech suppressed")
         }
         logger.info("\(event.agent, privacy: .public)/\(event.kind.rawValue, privacy: .public) -> \(String(describing: decision), privacy: .public) title=\(resolution.origin.rawValue, privacy: .public)")
+    }
+
+    static let hiddenIconNotice = "AgentAlarm 的菜单栏图标被系统隐藏了（菜单栏已满）。腾出空间后会自动出现，也可以在终端运行 agentalarm settings 打开设置。"
+
+    private func handleControl(_ message: ControlMessage) {
+        switch message.control {
+        case .openSettings:
+            outputLogger.info("control: open settings")
+            openSettings()
+        }
+    }
+
+    /// 打开设置窗口并把 App 带到前台；菜单栏图标被隐藏时由 `agentalarm settings` 或横幅触发。
+    func openSettings() {
+        settingsWindow.show(model: self)
+    }
+
+    private func menuBarStateChanged(_ state: MenuBarVisibilityMonitor.State) {
+        menuBarIconHidden = (state == .hidden)
+        guard state == .hidden, !didNotifyHiddenIcon else { return }
+        didNotifyHiddenIcon = true
+        outputLogger.warning("menu bar icon hidden by the system; notifying the user once")
+        if banner.authorized {
+            banner.postNotice(id: "menu-bar-hidden", title: "AgentAlarm 菜单栏图标被隐藏",
+                              body: AppModel.hiddenIconNotice, action: .openSettings)
+        } else {
+            previewSpeech(AppModel.hiddenIconNotice)
+        }
     }
 
     /// 提醒发生后的扩展点，Task 20 在这里发系统横幅。

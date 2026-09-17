@@ -37,6 +37,7 @@ OpenCode 需要重启（或重新加载会话）才会加载新写入的插件�
 ```bash
 agentalarm test                 # 发一条测试提醒
 agentalarm status               # App 是否在监听
+agentalarm settings             # 打开设置窗口（菜单栏图标被隐藏时用这个）
 agentalarm notify --agent MyBot --title "构建完成" --kind turn_complete
 echo '<hook json>' | agentalarm hook claude
 ```
@@ -52,6 +53,7 @@ echo '<hook json>' | agentalarm hook claude
 - 系统日志：`log show --last 10m --info --predicate 'subsystem == "com.jack.agentalarm"' --style compact`
 - 标题不对：Claude 读 transcript 的 `custom-title`，Codex 读 `~/.codex/state_N.sqlite` 的 `threads.name`，都属内部格式，解析失败时退化为项目目录名。
 - 用 `pkill` 或强制退出 App 时 socket 文件会残留，下次启动会自动清理；从菜单"退出 AgentAlarm"退出则会立即删除。
+- 看不到菜单栏图标：带刘海的 MacBook 上菜单栏放不下时，macOS 会整体隐藏新加入的状态项，提醒功能不受影响。App 检测到图标被隐藏会发一次横幅（未授权通知时改为语音播报），设置页顶部也会常驻提示；腾出菜单栏空间后图标自动出现。此时可用 `agentalarm settings` 打开设置窗口。
 - 改了 hook 模板后想让配置跟上：重新接入（关闭再打开开关）是刷新 hook 模板的方式，已存在的条目不会被自动改写。
 
 ## 文档

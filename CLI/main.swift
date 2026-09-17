@@ -27,7 +27,7 @@ let subcommand = cliEnvironment.arguments.first ?? ""
 // 整体自我超时 1 秒：hook/notify 无论如何以 0 退出，绝不拖住 Agent；test/status 则如实报告未响应。
 if finished.wait(timeout: .now() + 1.0) == .timedOut {
     cliEnvironment.log("timed out after 1s")
-    if subcommand == "test" || subcommand == "status" {
+    if subcommand == "test" || subcommand == "status" || subcommand == "settings" {
         cliEnvironment.stdout("AgentAlarm 未响应（1 秒内无结果），socket: \(cliEnvironment.socketPath)")
         exit(1)
     }

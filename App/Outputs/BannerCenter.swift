@@ -19,6 +19,25 @@ final class BannerCenter: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    enum NoticeAction: String {
+        case openSettings = "open_settings"
+    }
+
+    /// 与事件无关的提示横幅，点击后执行指定动作。
+    func postNotice(id: String, title: String, body: String, action: NoticeAction) {
+        guard authorized else { return }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = nil
+        content.userInfo = ["action": action.rawValue]
+        center.add(UNNotificationRequest(identifier: id, content: content, trigger: nil)) { error in
+            if let error {
+                Logger(subsystem: "com.jack.agentalarm", category: "output").error("notice failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
     func post(event: AlarmEvent, title: String) {
         guard authorized else { return }
         let content = UNMutableNotificationContent()
@@ -43,6 +62,10 @@ final class BannerCenter: NSObject, UNUserNotificationCenterDelegate {
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
                                             didReceive response: UNNotificationResponse) async {
         let info = response.notification.request.content.userInfo
+        if info["action"] as? String == NoticeAction.openSettings.rawValue {
+            await MainActor.run { AppModel.shared.openSettings() }
+            return
+        }
         guard let bundleId = info["bundleId"] as? String else { return }
         let pid = Int32(info["pid"] as? Int ?? 0)
         let name = info["name"] as? String ?? ""

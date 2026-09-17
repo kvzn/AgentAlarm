@@ -34,9 +34,5 @@ struct AgentAlarmApp: App {
             MenuBarLabel(count: model.waiting.count)
         }
         .menuBarExtraStyle(.menu)
-
-        Settings {
-            SettingsView().environment(model)
-        }
     }
 }

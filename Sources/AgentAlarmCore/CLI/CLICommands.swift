@@ -28,6 +28,7 @@ public enum CLICommands {
            agentalarm notify --agent <name> [--kind <kind>] [--title <text>] [--session-id <id>] [--cwd <dir>] [--message <text>]
            agentalarm test [--agent <name>]
            agentalarm status
+           agentalarm settings
            agentalarm --version
     """
 
@@ -48,6 +49,8 @@ public enum CLICommands {
             return runTest(rest, env)
         case "status":
             return runStatus(env)
+        case "settings":
+            return runSettings(env)
         default:
             env.stdout(usage)
             return 2
@@ -123,6 +126,22 @@ public enum CLICommands {
         let result = send(event, env)
         if result == .delivered {
             env.stdout("已送达 AgentAlarm")
+            return 0
+        }
+        env.stdout("AgentAlarm 未运行或未响应（\(result)），socket: \(env.socketPath)")
+        return 1
+    }
+
+    /// 请求运行中的 App 打开设置窗口；菜单栏图标被系统隐藏时这是唯一入口。
+    static func runSettings(_ env: CLIEnvironment) -> Int32 {
+        guard let data = try? ControlCoding.encode(ControlMessage(control: .openSettings)) else {
+            env.stdout("内部错误：无法编码控制消息")
+            return 1
+        }
+        let result = SocketClient(path: env.socketPath).send(data)
+        env.log("settings -> \(result)")
+        if result == .delivered {
+            env.stdout("已请求 AgentAlarm 打开设置")
             return 0
         }
         env.stdout("AgentAlarm 未运行或未响应（\(result)），socket: \(env.socketPath)")

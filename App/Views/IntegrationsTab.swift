@@ -7,6 +7,11 @@ struct IntegrationsTab: View {
     var body: some View {
         let store = model.integrations
         Form {
+            if model.menuBarIconHidden {
+                Section {
+                    Label(AppModel.hiddenIconNotice, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                }
+            }
             Section("Agent 接入") {
                 ForEach(AgentNames.supported, id: \.self) { agent in
                     AgentRow(agent: agent, store: store)

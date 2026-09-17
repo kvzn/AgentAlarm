@@ -23,6 +23,11 @@ struct GeneralTab: View {
 
     var body: some View {
         Form {
+            if model.menuBarIconHidden {
+                Section {
+                    Label(AppModel.hiddenIconNotice, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                }
+            }
             Section("启动") {
                 Toggle("登录时自动启动 AgentAlarm", isOn: launchAtLoginBinding)
                 if let loginError { Text(loginError).foregroundStyle(.red) }
