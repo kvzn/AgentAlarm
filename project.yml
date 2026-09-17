@@ -26,3 +26,32 @@ targets:
     settings:
       base:
         PRODUCT_NAME: agentalarm
+        TARGET_TEMP_DIR: $(PROJECT_TEMP_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/cli-$(TARGET_NAME).build
+  AgentAlarm:
+    type: application
+    platform: macOS
+    sources: [App]
+    dependencies:
+      - package: AgentAlarmCore
+      - target: agentalarm
+        embed: true
+        codeSign: true
+        # Contents/MacOS/agentalarm 会和 App 自身的可执行文件 AgentAlarm
+        # 在大小写不敏感的文件系统上撞名，所以 CLI 放在 Contents/Helpers/。
+        copy:
+          destination: wrapper
+          subpath: Contents/Helpers
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleIdentifier: com.jack.agentalarm
+        CFBundleName: AgentAlarm
+        CFBundleDisplayName: AgentAlarm
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSUIElement: true
+        LSMinimumSystemVersion: "14.0"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jack.agentalarm
+        PRODUCT_NAME: AgentAlarm
