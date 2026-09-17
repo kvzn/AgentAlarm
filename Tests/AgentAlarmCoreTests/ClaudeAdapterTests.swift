@@ -31,6 +31,12 @@ import Testing
         #expect(adapter.map(payload: payload, context: context) == nil)
     }
 
+    @Test func nullAgentIdIsNotASubagent() throws {
+        var payload = try fixtureJSON("claude-stop.json")
+        payload["agent_id"] = NSNull()
+        #expect(adapter.map(payload: payload, context: context)?.kind == .turnComplete)
+    }
+
     @Test func notificationTypesMap() throws {
         let base = try fixtureJSON("claude-notification-permission.json")
         let expectations: [(String, EventKind?)] = [

@@ -3,7 +3,7 @@
 每项通过后打勾并记录日期。
 
 ## 基础
-- [ ] `swift test` 全部通过（99 tests）
+- [ ] `swift test` 全部通过（102 tests）
 - [ ] `xcodebuild -scheme AgentAlarm` 构建成功，App 内含 `Contents/Helpers/agentalarm`
 - [ ] App 启动后 `~/.local/bin/agentalarm` 软链接正确；`agentalarm status` 为 reachable
 - [ ] `agentalarm test`：提示音 + 语音 + 横幅 + 菜单条目
@@ -14,6 +14,8 @@
 - [ ] 桌面 App：出现权限提示约 6 秒后 → "需要授权"
 - [ ] 桌面 App：Claude 用 AskUserQuestion 提问 → "有问题要问你"
 - [ ] CLI（iTerm）：回合结束 → 播报，标题为 `/rename` 后的名字或项目目录名
+- [ ] CLI（iTerm）：出现权限提示约 6 秒后 → "需要授权"
+- [ ] CLI（iTerm）：Claude 用 AskUserQuestion 提问 → "有问题要问你"
 - [ ] 60 秒无回复 → 再提醒一次"还在等你"；关闭"重复提醒"后不再提醒
 - [ ] 用户回复后条目从菜单列表消失
 - [ ] Claude.app 在前台且正在打字时，只有提示音没有语音

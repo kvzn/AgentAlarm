@@ -13,6 +13,9 @@ struct LogEntry: Identifiable {
     let outcome: String
 }
 
+/// `resolveWithBudget` 是 nonisolated static，用文件作用域 logger 而不是类型成员。
+private let titleLogger = Logger(subsystem: "com.jack.agentalarm", category: "title")
+
 /// 标题解析专用队列：同步文件/SQLite 读取不占用 Swift 协作线程池。
 private let titleResolutionQueue = DispatchQueue(label: "com.jack.agentalarm.titles", qos: .userInitiated, attributes: .concurrent)
 
@@ -21,14 +24,31 @@ private final class ResumeOnce: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<TitleResolution, Never>?
     init(_ continuation: CheckedContinuation<TitleResolution, Never>) { self.continuation = continuation }
-    func resume(with value: TitleResolution) {
+    /// 返回 true 表示这次调用真的恢复了 continuation（即它赢得了与对手的竞争）。
+    @discardableResult func resume(with value: TitleResolution) -> Bool {
         lock.lock()
         let pending = continuation
         continuation = nil
         lock.unlock()
         pending?.resume(returning: value)
+        return pending != nil
     }
 }
+
+/// 按到达顺序串行处理事件：在 socket 投递队列上同步构建任务链，主线程逐个执行。
+private final class EventSequencer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var tail: Task<Void, Never>?
+    func enqueue(_ data: Data) {
+        lock.lock(); defer { lock.unlock() }
+        let previous = tail
+        tail = Task { @MainActor in
+            await previous?.value
+            await AppModel.shared.handle(data)
+        }
+    }
+}
+private let eventSequencer = EventSequencer()
 
 /// 事件管线：socket → 标题解析 → 等待列表 → 策略 → 声音/语音/日志。
 @MainActor @Observable
@@ -71,11 +91,14 @@ final class AppModel {
             try FileManager.default.createDirectory(at: paths.appSupport, withIntermediateDirectories: true,
                                                     attributes: [.posixPermissions: 0o700])
             let server = SocketServer(path: paths.socket.path) { data in
-                Task { @MainActor in AppModel.shared.receive(data) }
+                eventSequencer.enqueue(data)
             }
             try server.start()
             self.server = server
             socketLogger.info("listening at \(self.paths.socket.path, privacy: .public)")
+        } catch SocketServer.ServerError.addressInUse {
+            lastError = "另一个 AgentAlarm 实例已在运行（socket 被占用），本实例不会接收事件"
+            socketLogger.error("socket already in use at \(self.paths.socket.path, privacy: .public)")
         } catch {
             lastError = "无法监听 socket：\(error)"
             socketLogger.error("listen failed: \(String(describing: error), privacy: .public)")
@@ -88,25 +111,28 @@ final class AppModel {
     }
 
     func receive(_ data: Data) {
+        eventSequencer.enqueue(data)
+    }
+
+    /// 由 EventSequencer 按到达顺序在主线程调用。
+    func handle(_ data: Data) async {
         guard let event = try? EventCoding.decode(data) else {
             socketLogger.error("undecodable event, \(data.count) bytes")
             return
         }
-        // 只有真实 hook 事件才算接入已验证；test 合成事件不算。
-        if event.source.hookEventName != "test", !settings.isVerified(event.agent) {
+        // 只有真实 hook 事件且是已支持的 Agent 才算接入已验证；test 合成事件不算。
+        if event.source.hookEventName != "test", AgentNames.supported.contains(event.agent), !settings.isVerified(event.agent) {
             settings.markVerified(event.agent)
             integrations.refresh()
         }
         guard event.kind.isAlerting else {
             _ = waiting.apply(event, title: "", now: Date())
             record(event, title: "", outcome: "list: \(event.kind.rawValue)")
+            logger.info("\(event.agent, privacy: .public)/\(event.kind.rawValue, privacy: .public) -> list: \(event.kind.rawValue, privacy: .public)")
             return
         }
-        let service = titleService
-        Task.detached(priority: .userInitiated) {
-            let resolution = await AppModel.resolveWithBudget(event, service: service)
-            await MainActor.run { AppModel.shared.process(event, resolution: resolution) }
-        }
+        let resolution = await AppModel.resolveWithBudget(event, service: titleService)
+        process(event, resolution: resolution)
     }
 
     /// 标题解析预算 1 秒：解析器在专用队列上同步执行，与计时器竞争，先到者胜；慢解析器的结果丢弃。
@@ -115,7 +141,9 @@ final class AppModel {
             let once = ResumeOnce(continuation)
             titleResolutionQueue.async { once.resume(with: service.resolve(event)) }
             DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + budget) {
-                once.resume(with: FallbackTitle.resolve(event))
+                if once.resume(with: FallbackTitle.resolve(event)) {
+                    titleLogger.warning("title budget exceeded for \(event.agent, privacy: .public)/\(event.sessionId, privacy: .public), using fallback")
+                }
             }
         }
     }

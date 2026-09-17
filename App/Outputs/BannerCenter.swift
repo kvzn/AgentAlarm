@@ -1,5 +1,6 @@
 import AgentAlarmCore
 import Foundation
+import OSLog
 import UserNotifications
 
 @MainActor
@@ -27,7 +28,11 @@ final class BannerCenter: NSObject, UNUserNotificationCenterDelegate {
         if let host = event.host {
             content.userInfo = ["bundleId": host.bundleId, "pid": Int(host.pid), "name": host.name]
         }
-        center.add(UNNotificationRequest(identifier: event.id, content: content, trigger: nil))
+        center.add(UNNotificationRequest(identifier: event.id, content: content, trigger: nil)) { error in
+            if let error {
+                Logger(subsystem: "com.jack.agentalarm", category: "output").error("banner failed: \(String(describing: error), privacy: .public)")
+            }
+        }
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
@@ -41,6 +46,6 @@ final class BannerCenter: NSObject, UNUserNotificationCenterDelegate {
         guard let bundleId = info["bundleId"] as? String else { return }
         let pid = Int32(info["pid"] as? Int ?? 0)
         let name = info["name"] as? String ?? ""
-        await MainActor.run { HostActivator.activate(HostInfo(bundleId: bundleId, pid: pid, name: name)) }
+        _ = await MainActor.run { HostActivator.activate(HostInfo(bundleId: bundleId, pid: pid, name: name)) }
     }
 }

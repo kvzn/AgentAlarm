@@ -63,7 +63,11 @@ import Testing
         }
         #expect(installed)
         #expect(reason.contains("手动删除"))
-        guard case .manualRequired(_, let freshInstalled) = manager.status("gemini", verified: false) else { return }
+        try FileManager.default.createDirectory(at: manager.paths.geminiSettings.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "// c\n{}".write(to: manager.paths.geminiSettings, atomically: true, encoding: .utf8)
+        guard case .manualRequired(_, let freshInstalled) = manager.status("gemini", verified: false) else {
+            Issue.record("expected manualRequired for commented gemini config"); return
+        }
         #expect(!freshInstalled)
     }
 

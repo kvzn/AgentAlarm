@@ -11,7 +11,7 @@ struct RulesTab: View {
                 Stepper("键鼠活跃判定窗口：\(Int(settings.userActiveThreshold)) 秒", value: $settings.userActiveThreshold, in: 3...60, step: 1)
             }
             Section("重复提醒") {
-                Toggle("回合结束约 60 秒仍无人回复时再提醒一次", isOn: $settings.repeatReminders)
+                Toggle("回合结束约 60 秒仍无人回复时再提醒一次（目前只有 Claude Code 会发出该事件）", isOn: $settings.repeatReminders)
             }
             Section("静音时段") {
                 Toggle("启用静音时段（只更新列表，不出声）", isOn: $settings.quietHoursEnabled)

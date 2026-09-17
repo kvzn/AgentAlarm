@@ -11,7 +11,7 @@ public struct ClaudeAdapter: HookAdapter {
         let kind: EventKind
         switch hookName {
         case "Stop":
-            if payload["agent_id"] != nil { return nil }
+            if let agentId = payload.string("agent_id"), !agentId.isEmpty { return nil }
             kind = .turnComplete
         case "Notification":
             switch notificationType {

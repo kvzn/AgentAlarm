@@ -76,6 +76,31 @@ final class Collector: @unchecked Sendable {
         neverStarted.stop()
     }
 
+    @Test func deliversInConnectionOrder() throws {
+        let path = shortSocketPath()
+        let collector = Collector()
+        let server = SocketServer(path: path) { collector.append($0) }
+        try server.start()
+        defer { server.stop() }
+        let client = SocketClient(path: path)
+        for index in 0..<20 {
+            #expect(client.send(Data("{\"i\":\(index)}".utf8)) == .delivered)
+        }
+        for _ in 0..<20 { #expect(collector.semaphore.wait(timeout: .now() + 2) == .success) }
+        let order = collector.received.map { String(decoding: $0, as: UTF8.self) }
+        #expect(order == (0..<20).map { "{\"i\":\($0)}" })
+    }
+
+    @Test func secondServerOnSamePathIsRefused() throws {
+        let path = shortSocketPath()
+        let first = SocketServer(path: path) { _ in }
+        try first.start()
+        defer { first.stop() }
+        let second = SocketServer(path: path) { _ in }
+        #expect(throws: (any Error).self) { try second.start() }
+        #expect(SocketClient(path: path).probe(), "第一个实例仍在监听")
+    }
+
     @Test func unavailableServerFailsFast() {
         let client = SocketClient(path: shortSocketPath())
         let started = Date()

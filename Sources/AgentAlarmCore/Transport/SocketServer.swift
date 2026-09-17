@@ -2,17 +2,17 @@ import Darwin
 import Foundation
 import OSLog
 
-/// 监听 Unix socket，每个连接读取第一行 JSON 交给 handler。
-/// handler 在全局队列上并发调用，且可能在 stop() 返回之后仍被调用一次。
+/// 监听 Unix socket，每个连接读取第一行 JSON 交给 handler。handler 在串行投递队列上按连接顺序依次调用，且可能在 stop() 返回之后仍被调用一次。
 public final class SocketServer: @unchecked Sendable {
     public enum ServerError: Error {
-        case pathTooLong, create(Int32), bind(Int32), listen(Int32), permissions(Int32), alreadyStarted
+        case pathTooLong, create(Int32), bind(Int32), listen(Int32), permissions(Int32), alreadyStarted, addressInUse
     }
 
     private let path: String
     private let maxMessageBytes: Int
     private let handler: @Sendable (Data) -> Void
     private let queue = DispatchQueue(label: "com.jack.agentalarm.socket")
+    private let deliveryQueue = DispatchQueue(label: "com.jack.agentalarm.socket.delivery", qos: .userInitiated)
     private let logger = Logger(subsystem: "com.jack.agentalarm", category: "socket")
     private var source: DispatchSourceRead?
 
@@ -24,6 +24,8 @@ public final class SocketServer: @unchecked Sendable {
         try queue.sync {
             guard source == nil else { throw ServerError.alreadyStarted }
             guard var address = UnixSocketAddress.make(path: path) else { throw ServerError.pathTooLong }
+            // 已有实例在监听同一路径时不抢占，否则第二个实例会静默接管事件。
+            if SocketClient(path: path).probe() { throw ServerError.addressInUse }
             unlink(path)
             let fd = socket(AF_UNIX, SOCK_STREAM, 0)
             guard fd >= 0 else { throw ServerError.create(errno) }
@@ -72,7 +74,7 @@ public final class SocketServer: @unchecked Sendable {
         let handler = handler
         let limit = maxMessageBytes
         let logger = logger
-        DispatchQueue.global(qos: .userInitiated).async {
+        deliveryQueue.async {
             var data = Data()
             var chunk = [UInt8](repeating: 0, count: 4096)
             var overflow = false

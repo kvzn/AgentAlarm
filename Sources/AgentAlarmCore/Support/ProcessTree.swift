@@ -22,7 +22,7 @@ public enum ProcessTree {
         var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
         let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
         guard length > 0 else { return nil }
-        return String(cString: buffer)
+        return buffer.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
     }
 
     public static func ancestors(from pid: pid_t = getpid(), limit: Int = 32) -> [Ancestor] {
