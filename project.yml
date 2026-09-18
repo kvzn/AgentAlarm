@@ -16,6 +16,9 @@ settings:
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Manual
     ENABLE_HARDENED_RUNTIME: YES
+    # 版本号从这里注入 Info.plist；CI 发布时用标签覆盖 MARKETING_VERSION，用运行序号覆盖 CURRENT_PROJECT_VERSION。
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
 targets:
   agentalarm:
     type: tool
@@ -47,8 +50,8 @@ targets:
         CFBundleIdentifier: com.jack.agentalarm
         CFBundleName: AgentAlarm
         CFBundleDisplayName: AgentAlarm
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
     settings:

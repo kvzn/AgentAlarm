@@ -1,0 +1,92 @@
+name: Release
+
+# 推 v* 标签时构建并创建 GitHub Release；手动触发只构建并上传产物，用来演练流程而不发布。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: macos-26
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode on the runner
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Resolve version
+        id: version
+        run: |
+          CLI_VERSION=$(sed -nE 's/.*public static let version = "([^"]+)".*/\1/p' Sources/AgentAlarmCore/CLI/CLICommands.swift)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF_NAME#v}
+            if [[ "$VERSION" != "$CLI_VERSION" ]]; then
+              echo "::error::标签 $GITHUB_REF_NAME 与 CLICommands.version ($CLI_VERSION) 不一致，先改常量再打标签"
+              exit 1
+            fi
+          else
+            VERSION="$CLI_VERSION-dev.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "构建版本 $VERSION"
+
+      - name: Core tests
+        run: swift test
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build app (Release, ad-hoc signed)
+        run: |
+          xcodegen generate
+          xcodebuild -project AgentAlarm.xcodeproj -scheme AgentAlarm -configuration Release \
+            -derivedDataPath build/dd \
+            MARKETING_VERSION=${{ steps.version.outputs.version }} \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} build -quiet
+          APP=build/dd/Build/Products/Release/AgentAlarm.app
+          codesign --verify --deep --strict "$APP"
+          plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist"
+          "$APP/Contents/Helpers/agentalarm" --version
+
+      - name: Package
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          ditto -c -k --sequesterRsrc --keepParent build/dd/Build/Products/Release/AgentAlarm.app "AgentAlarm-$VERSION.zip"
+          shasum -a 256 "AgentAlarm-$VERSION.zip" | tee "AgentAlarm-$VERSION.zip.sha256"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgentAlarm-${{ steps.version.outputs.version }}
+          path: |
+            AgentAlarm-*.zip
+            AgentAlarm-*.zip.sha256
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          cat > notes.md <<'NOTES'
+          ## 安装
+
+          1. 下载 `AgentAlarm-<版本>.zip`，解压后把 `AgentAlarm.app` 拖到「应用程序」。
+          2. 本构建仅 ad-hoc 签名、未经 Apple 公证，首次打开会被 Gatekeeper 拦下：在「系统设置 → 隐私与安全性」底部点「仍要打开」，或在终端执行 `xattr -d com.apple.quarantine /Applications/AgentAlarm.app`。
+          3. 启动后从菜单栏的铃铛进入「设置 → 接入」打开需要的 Agent。
+
+          校验：`shasum -a 256 -c AgentAlarm-<版本>.zip.sha256`
+
+          NOTES
+          gh release create "$GITHUB_REF_NAME" "AgentAlarm-$VERSION.zip" "AgentAlarm-$VERSION.zip.sha256" \
+            --title "AgentAlarm $VERSION" --notes-file notes.md --generate-notes

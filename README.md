@@ -1,10 +1,23 @@
 # AgentAlarm
 
+[![CI](https://github.com/kvzn/AgentAlarm/actions/workflows/ci.yml/badge.svg)](https://github.com/kvzn/AgentAlarm/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/kvzn/AgentAlarm?display_name=tag)](https://github.com/kvzn/AgentAlarm/releases/latest)
+
 macOS 菜单栏工具：Claude Code、Codex、Gemini CLI、OpenCode 的会话回合结束或等待人工时，播放提示音并语音播报"Agent 名 + 会话标题 + 状态"，菜单栏列出等待中的会话，点击跳回宿主应用。
+
+## 下载安装
+
+到 [Releases](https://github.com/kvzn/AgentAlarm/releases/latest) 下载 `AgentAlarm-<版本>.zip`，解压后把 `AgentAlarm.app` 拖到「应用程序」。构建只做了 ad-hoc 签名、没有经过 Apple 公证，首次打开会被 Gatekeeper 拦下：在「系统设置 → 隐私与安全性」底部点「仍要打开」，或执行：
+
+```bash
+xattr -d com.apple.quarantine /Applications/AgentAlarm.app
+```
+
+校验下载：`shasum -a 256 -c AgentAlarm-<版本>.zip.sha256`。
 
 ## 构建与运行
 
-依赖：Xcode 27、macOS 14+、XcodeGen（`brew install xcodegen`）。
+依赖：Xcode 26.6 或更新（本地开发用 Xcode 27）、macOS 14+、XcodeGen（`brew install xcodegen`）。
 
 ```bash
 swift test                                   # Core 单元测试（102 tests）
@@ -55,6 +68,18 @@ echo '<hook json>' | agentalarm hook claude
 - 用 `pkill` 或强制退出 App 时 socket 文件会残留，下次启动会自动清理；从菜单"退出 AgentAlarm"退出则会立即删除。
 - 看不到菜单栏图标：带刘海的 MacBook 上菜单栏放不下时，macOS 会整体隐藏新加入的状态项，提醒功能不受影响。App 检测到图标被隐藏会发一次横幅（未授权通知时改为语音播报），设置页顶部也会常驻提示；腾出菜单栏空间后图标自动出现。此时可用 `agentalarm settings` 打开设置窗口。
 - 改了 hook 模板后想让配置跟上：重新接入（关闭再打开开关）是刷新 hook 模板的方式，已存在的条目不会被自动改写。
+
+## CI 与发布
+
+- `.github/workflows/ci.yml`：推送 `main`、PR 或手动触发时在 `macos-26` runner 上跑 `swift test`，用 Release 配置构建 App，校验签名，并把 `AgentAlarm-<sha>.zip` 作为工作流产物保留 14 天。
+- `.github/workflows/release.yml`：推送 `v*` 标签时构建、打包、生成 SHA256，并用 `gh release create` 自动创建 GitHub Release 挂上 zip 与校验文件；手动触发则只构建并上传产物，用来演练而不发布。
+- 版本号来源：`project.yml` 的 `MARKETING_VERSION` 注入 Info.plist，发布时被标签覆盖；`CFBundleVersion` 取工作流运行序号。标签必须与 `CLICommands.version` 一致，否则发布工作流直接失败。
+
+发布一个版本：
+
+```bash
+sed -i '' 's/version = "0.1.0"/version = "0.2.0"/' Sources/AgentAlarmCore/CLI/CLICommands.swift && sed -i '' 's/MARKETING_VERSION: "0.1.0"/MARKETING_VERSION: "0.2.0"/' project.yml && git commit -am "chore: bump version to 0.2.0" && git tag v0.2.0 && git push origin main v0.2.0
+```
 
 ## 文档
 
